@@ -13,5 +13,8 @@ Unrestricted（全て実行可）
 ## スクリプト実行兼付与 ※管理者権限必要
 Set-ExecutionPolicy RemoteSigned
 
+## スクリプト実行兼付与
+Set-ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
+
 ## 実行時に実行権付与する
 powershell -ExecutionPolicy RemoteSigned -File .\for_all_files.ps1
