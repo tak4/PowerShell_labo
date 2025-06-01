@@ -1,14 +1,17 @@
 # PowerShell_labo
 
-
 ## 実行兼確認
 Get-ExecutionPolicy
 
-Restricted（制限）: スクリプトの実行が許可されません。
-AllSigned（全て署名済み）: スクリプトは、信頼された発行元によって署名されている必要があります。そうでない場合、スクリプトの実行はブロックされます。
-RemoteSigned（リモート署名済み）: ローカルで作成されたスクリプトは制限されますが、インターネットなどのリモートからダウンロードしたスクリプトは署名済みであれば実行できます。
-Unrestricted（制限なし）: このポリシーでは、スクリプトの実行に関するすべての制限が解除されます。
+AllSigned（署名付きスクリプトのみ実行可）  
+Bypass（検査迂回）  
+RemoteSigned（ローカルスクリプトと署名付きのリモートスクリプトのみ実行可）  
+Restricted（全て実行不可）  
+Undefined（未定義）  
+Unrestricted（全て実行可）  
 
-## スクリプト実行兼付与
-### リモートからダウンロードされたスクリプトは署名されている必要があるが、ローカルのスクリプトは署名なしで実行可能
+## スクリプト実行兼付与 ※管理者権限必要
 Set-ExecutionPolicy RemoteSigned
+
+## 実行時に実行権付与する
+powershell -ExecutionPolicy RemoteSigned -File .\for_all_files.ps1
