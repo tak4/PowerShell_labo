@@ -1,5 +1,8 @@
 # PowerShell_labo
 
+## Version確認
+$PSVersionTable
+
 ## 実行兼確認
 Get-ExecutionPolicy
 
@@ -10,6 +13,9 @@ Restricted（全て実行不可）
 Undefined（未定義）  
 Unrestricted（全て実行可）  
 
+## グループポリシー確認
+Get-ExecutionPolicy -list
+
 ## スクリプト実行兼付与 ※管理者権限必要
 Set-ExecutionPolicy RemoteSigned
 
@@ -18,3 +24,4 @@ Set-ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
 
 ## 実行時に実行権付与する
 powershell -ExecutionPolicy RemoteSigned -File .\for_all_files.ps1
+powershell -ExecutionPolicy Bypass -File .\for_all_files.ps1
