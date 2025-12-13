@@ -1,12 +1,23 @@
+<#
+.SYNOPSIS
+指定されたプロセスのUI要素ツリーを表示します。
+.PARAMETER ProcessName
+調査したいアプリケーションのプロセス名を指定します。
+.EXAMPLE
+.\Get-NotepadUIElements.ps1 -ProcessName notepad
+#>
+param(
+    [string]$ProcessName = "notepad"
+)
 
 # This script requires the UIAutomationClient assembly.
 Add-Type -AssemblyName UIAutomationClient
 
 # Find the Notepad process
-$process = Get-Process -Name notepad -ErrorAction SilentlyContinue
+$process = Get-Process -Name $ProcessName -ErrorAction SilentlyContinue
 
 if (-not $process) {
-    Write-Host "Notepad is not running."
+    Write-Host "Process '$ProcessName' is not running."
     exit
 }
 
@@ -14,7 +25,7 @@ if (-not $process) {
 $rootElement = [System.Windows.Automation.AutomationElement]::FromHandle($process.MainWindowHandle)
 
 if (-not $rootElement) {
-    Write-Host "Could not find the main window of Notepad."
+    Write-Host "Could not find the main window of process '$ProcessName'."
     exit
 }
 
@@ -49,5 +60,5 @@ function Walk-UIElementTree {
 }
 
 # Start the traversal from the root element
-Write-Host "UI Elements of Notepad:"
+Write-Host "UI Elements of '$ProcessName':"
 Walk-UIElementTree -element $rootElement -level 0
