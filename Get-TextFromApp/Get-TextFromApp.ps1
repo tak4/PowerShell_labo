@@ -47,22 +47,35 @@ $outputFilePath = "$env:USERPROFILE\Desktop\captured_text.txt"
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
 
+# 設定項目に AutomationId と ElementName を追加
+$automationId = $null # AutomationId で検索する場合に指定
+$elementName = "テキスト エディター" # Name で検索する場合に指定 (UWP版メモ帳のテキストエリアの名前)
+
 # 条件を配列として定義します。
-$conditions = @(
-    # 条件1: コントロールタイプが 'Document' であること。
-    #       メモ帳のテキストエリアは Document 型として認識されます。
-    New-Object System.Windows.Automation.PropertyCondition(
-        [System.Windows.Automation.AutomationElement]::ControlTypeProperty, # どのプロパティを調べるか (ここではコントロールタイプ)
-        [System.Windows.Automation.ControlType]::Document                  # 期待する値 (ここでは Document 型)
-    )
-    
-    # 必要に応じて、以下のようにカンマで区切って条件を追加し、要素をより正確に絞り込めます。
-    # ,
-    # New-Object System.Windows.Automation.PropertyCondition(
-    #     [System.Windows.Automation.AutomationElement]::NameProperty, # プロパティ: Name
-    #     "テキスト エディター"                                      # 期待する値
-    # )
+$conditions = @()
+
+# ControlType が 'Document' であること (メモ帳のテキストエリア)
+$conditions += New-Object -TypeName System.Windows.Automation.PropertyCondition -ArgumentList @(
+    [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
+    [System.Windows.Automation.ControlType]::Document
 )
+
+# AutomationId が指定されている場合、条件に追加
+if (-not [string]::IsNullOrEmpty($automationId)) {
+    $conditions += New-Object -TypeName System.Windows.Automation.PropertyCondition -ArgumentList @(
+        [System.Windows.Automation.AutomationElement]::AutomationIdProperty,
+        $automationId
+    )
+}
+
+# Name が指定されている場合、条件に追加
+if (-not [string]::IsNullOrEmpty($elementName)) {
+    $conditions += New-Object -TypeName System.Windows.Automation.PropertyCondition -ArgumentList @(
+        [System.Windows.Automation.AutomationElement]::NameProperty,
+        $elementName
+    )
+}
+
 
 # 配列から $null の要素（コメントアウトされた行などによって生じる可能性がある）を取り除く
 $conditions = $conditions | Where-Object { $_ -ne $null }
@@ -125,20 +138,26 @@ try {
 
     # パターンA: ValuePattern を試す (書き込み可能なテキストボックスでよく使われる)
     $valuePattern = $null
+    $textPattern = $null
     # TryGetCurrentPatternは、パターンがサポートされていればtrueを返し、第二引数にパターンオブジェクトを格納する
     if ($textBoxElement.TryGetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern, [ref]$valuePattern)) {
         Write-Host "ValuePattern を使用してテキストを取得します..."
         $text = $valuePattern.Current.Value
     }
     # パターンB: TextPattern を試す (読み取り専用の要素やドキュメントなどで使われる)
-    elseif ($textBoxElement.TryGetCurrentPattern([System.Windows.Automation.TextPattern]::Pattern, [ref]$textPattern)) {
+    elseif ($textBoxElement.TryGetCurrentPattern([System.Windows.Automation.TextPattern]::Pattern, [ref]$textPattern)) { # $textPattern を [ref] で渡す
         Write-Host "ValuePatternが見つかりません。TextPattern を使用してテキストを取得します..."
         # ドキュメント全体の範囲を取得し、そのテキストを-1（すべて）取得し、前後の余白を削除
         $text = $textPattern.DocumentRange.GetText(-1).Trim()
     }
-    # どちらのパターンもサポートされていない場合
+    # パターンC: Nameプロパティを試す (上記パターンが使えない場合の代替手段)
+    elseif (-not [string]::IsNullOrEmpty($textBoxElement.Current.Name)) {
+        Write-Host "ValuePattern/TextPatternが見つかりません。Nameプロパティ を使用してテキストを取得します..."
+        $text = $textBoxElement.Current.Name
+    }
+    # すべてのパターンが失敗した場合
     else {
-        throw "このUI要素はテキスト取得をサポートしていません (ValuePattern, TextPattern の両方が利用不可)。"
+        throw "このUI要素はテキスト取得をサポートしていません (ValuePattern, TextPattern, Nameプロパティのすべてが利用不可または空です)。"
     }
 
     # 5. ファイルへ保存
