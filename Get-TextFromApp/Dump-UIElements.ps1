@@ -24,9 +24,9 @@ The ID of the process to inspect.
 .\Dump-UIElements.ps1 -WindowTitle "Untitled - Notepad"
 
 .EXAMPLE
-# Dump UI elements by Process ID
-.\Dump-UIElements.ps1 -ProcessId 1234
+# .\Dump-UIElements.ps1 -ProcessName notepad
 #>
+[CmdletBinding()]
 param(
     [Parameter(ParameterSetName='ProcessName', Mandatory=$true)]
     [string]$ProcessName,
