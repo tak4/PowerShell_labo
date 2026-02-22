@@ -14,17 +14,20 @@ if (-not (Test-Path $ConfigFile)) {
     Add-Content -Path $ConfigFile -Value "TTPMacroExe=D:\tools\teraterm-5.4.0\ttpmacro.exe"
 }
 
-# Setting from config.ini
-$DefaultHostAddr = (Get-Content $ConfigFile | Select-String -Pattern "HostAddr=").ToString().Split('=')[1].Trim()
-$DefaultPortNo = (Get-Content $ConfigFile | Select-String -Pattern "PortNo=").ToString().Split('=')[1].Trim()
+# Get the path to the macro interpreter
 $TTPMacroExe = (Get-Content $ConfigFile | Select-String -Pattern "TTPMacroExe=").ToString().Split('=')[1].Trim()
 
+# Get default settings from config.ini
+$DefaultHostAddr = (Get-Content $ConfigFile | Select-String -Pattern "HostAddr=").ToString().Split('=')[1].Trim()
+$DefaultPortNo = (Get-Content $ConfigFile | Select-String -Pattern "PortNo=").ToString().Split('=')[1].Trim()
+
+# Accept input for settings
 $HostAddr = Read-Host "Enter Host Address (Default: $DefaultHostAddr)"
 $PortNo = Read-Host "Enter Host Address (Default: $PortNo)"
-
 Write-Host "$DefaultHostAddr" -ForegroundColor Green
 Write-Host "$DefaultPortNo" -ForegroundColor Green
 
+# Use default settings if no input is provided
 if ([string]::IsNullOrWhiteSpace($HostAddr)) {
     $HostAddr = $DefaultHostAddr
 }
