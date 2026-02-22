@@ -1,0 +1,52 @@
+; WSL_connect_ssh.ttl - Simplified for PowerShell integration
+
+; HOSTADDR is passed as the first parameter from PowerShell
+HOSTADDR = param2
+PORTNO = param3
+;messagebox HOSTADDR 'debug'
+
+;マクロのあるディレクトリパスを取得
+getdir macro_dir
+;messagebox macro_dir 'debug'
+
+;接続情報
+USERNAME = ''
+PASSWORD = ''
+
+;接続パラメータを作成
+COMMAND = ''
+COMMAND = HOSTADDR
+strconcat COMMAND ' /ssh /auth=password /user='
+strconcat COMMAND USERNAME
+strconcat COMMAND ' /passwd='
+strconcat COMMAND PASSWORD
+strconcat COMMAND ' /f='
+strconcat COMMAND macro_dir
+strconcat COMMAND '\inifile\'
+strconcat COMMAND 'WSL_connect.ini'
+;messagebox COMMAND 'debug'
+
+;接続
+connect COMMAND
+
+wait '$'
+
+;ログフォルダ格納先を指定
+;changedirを機能させるには、
+;iniファイルでの Default Log Folderの指定を空欄にする必要がある
+log_dir = ''
+strconcat log_dir macro_dir
+strconcat log_dir '\log'
+;messagebox log_dir 'debug'
+changedir log_dir
+
+;ログ記録開始 テキストモード／追記モード 
+logopen 'test.log' 0 0
+
+;ログ記録終了
+; logclosebox COMMAND 'debug'
+
+COMMAND = ''
+COMMAND = 'echo '
+strconcat COMMAND PORTNO
+sendln COMMAND
