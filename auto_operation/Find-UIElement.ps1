@@ -21,6 +21,8 @@ The AutomationId property of the UI element to find.
 The ClassName property of the UI element to find.
 .PARAMETER ControlType
 The ControlType of the UI element to find (e.g., "Button", "Edit", "Document").
+.PARAMETER LocalizedControlType
+The localized ControlType string of the UI element to find.
 
 .EXAMPLE
 # Find the main document area in Notepad
@@ -50,7 +52,10 @@ param(
     [string]$ClassName,
 
     [Parameter(Mandatory=$false)]
-    [string]$ControlType
+    [string]$ControlType,
+
+    [Parameter(Mandatory=$false)]
+    [string]$LocalizedControlType
 )
 
 Add-Type -AssemblyName UIAutomationClient
@@ -98,9 +103,12 @@ try {
         $controlTypeValue = [System.Windows.Automation.ControlType]::$($ControlType)
         $conditions += New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty, $controlTypeValue)
     }
+    if ($PSBoundParameters.ContainsKey('LocalizedControlType')) {
+        $conditions += New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::LocalizedControlTypeProperty, $LocalizedControlType)
+    }
 
     if ($conditions.Count -eq 0) {
-        throw "At least one search criteria (-Name, -AutomationId, -ClassName, -ControlType) must be provided."
+        throw "At least one search criteria (-Name, -AutomationId, -ClassName, -ControlType, -LocalizedControlType) must be provided."
     }
 
     # Combine conditions if more than one is specified

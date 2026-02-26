@@ -73,8 +73,9 @@ try {
         throw "Could not get the root UI element from the main window. The window may not be accessible."
     }
 
-    # Use the ControlViewWalker to traverse the UI tree
+    # Use the RawViewWalker to traverse the UI tree (shows all elements including layout containers)
     $treeWalker = [System.Windows.Automation.TreeWalker]::ControlViewWalker
+    # $treeWalker = [System.Windows.Automation.TreeWalker]::RawViewWalker
 
     # Recursive function to walk the UI element tree
     function Walk-UIElementTree {
