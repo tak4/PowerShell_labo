@@ -5,7 +5,7 @@ $TTLFile = Join-Path $ScriptDir "WSL_connect_ssh.ttl"
 
 if (-not (Test-Path $ConfigFile)) {
     Add-Content -Path $ConfigFile -Value "[SelectedHost]"
-    Add-Content -Path $ConfigFile -Value "SelectHost=PC1"
+    Add-Content -Path $ConfigFile -Value "SelectedHost=PC1"
     Add-Content -Path $ConfigFile -Value "" # Newline for separation
     Add-Content -Path $ConfigFile -Value "[HostAddr]"
     Add-Content -Path $ConfigFile -Value "HostAddr1=127.0.0.1"
@@ -53,9 +53,10 @@ switch ($SelectedHostNo) {
 Write-Host "Selected PC   : PC$SelectedHostNo : $HostAddr" -ForegroundColor Green
 Write-Host "Selected Port : $DefaultPortNo" -ForegroundColor Green
 
+# Update the SelectHost in config.ini to remember the last selection for the next run.
 (Get-Content $ConfigFile) | ForEach-Object {
-    if ($_ -like "HostAddr=*") {
-        "HostAddr=$HostAddr"
+    if ($_ -like "SelectedHost=*") {
+        "SelectedHost=PC$SelectedHostNo"
     } else {
         $_
     }
