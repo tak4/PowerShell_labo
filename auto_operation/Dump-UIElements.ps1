@@ -31,6 +31,10 @@ If specified, shows statistics about the UI element tree at the end, including:
 If specified, includes hidden elements (IsVisible=false) in the traversal using RawViewWalker.
 By default, only visible elements are shown (Control View).
 
+.PARAMETER ShowPatterns
+If specified, shows supported UI Automation patterns for each element.
+This includes patterns like TableItemPattern, GridPattern, InvokePattern, ValuePattern, etc.
+
 .EXAMPLE
 # Dump UI elements of a Notepad window by process name
 .\Dump-UIElements.ps1 -ProcessName notepad
@@ -52,8 +56,12 @@ By default, only visible elements are shown (Control View).
 .\Dump-UIElements.ps1 -ProcessName notepad -IncludeHidden
 
 .EXAMPLE
-# Dump UI elements with all options
-.\Dump-UIElements.ps1 -ProcessName notepad -ShowSkipped -ShowStatistics -IncludeHidden
+# Dump UI elements and show supported patterns
+.\Dump-UIElements.ps1 -ProcessName notepad -ShowPatterns
+
+.EXAMPLE
+# Dump UI elements with all options including pattern detection
+.\Dump-UIElements.ps1 -ProcessName notepad -ShowSkipped -ShowStatistics -IncludeHidden -ShowPatterns
 #>
 [CmdletBinding()]
 param(
@@ -73,7 +81,10 @@ param(
     [switch]$ShowStatistics,
 
     [Parameter()]
-    [switch]$IncludeHidden
+    [switch]$IncludeHidden,
+
+    [Parameter()]
+    [switch]$ShowPatterns
 )
 
 # This script requires the UIAutomationClient assembly.
@@ -116,6 +127,9 @@ try {
     }
     if ($ShowSkipped) {
         Write-Host "Debug Mode: Showing skipped elements (in gray)" -ForegroundColor Yellow
+    }
+    if ($ShowPatterns) {
+        Write-Host "Pattern Mode: Showing supported UI Automation patterns" -ForegroundColor Green
     }
     Write-Host "---"
 
@@ -195,6 +209,22 @@ try {
             if ($ShowSkipped -and $skipReasons.Count -gt 0) {
                 Write-Host ("{0}  └─ IsControlElement: {1}, IsContentElement: {2}, IsVisible: {3}, Offscreen: {4}" -f $indent, $isControl, $isContent, $isVisible, $isOffscreen) -ForegroundColor DarkGray
             }
+            
+            # Show supported patterns when -ShowPatterns is specified
+            if ($ShowPatterns) {
+                $supportedPatterns = Get-SupportedPatterns -element $element
+                if ($supportedPatterns.Count -gt 0) {
+                    Write-Host ("{0}  Patterns: {1}" -f $indent, ($supportedPatterns -join ', ')) -ForegroundColor Green
+                    
+                    # Show TableItemPattern details if present
+                    if ($supportedPatterns -contains 'TableItemPattern') {
+                        $tableDetails = Get-TableItemPatternDetails -element $element
+                        foreach ($detail in $tableDetails) {
+                            Write-Host ("{0}{1}" -f $indent, $detail) -ForegroundColor Cyan
+                        }
+                    }
+                }
+            }
         }
         catch {
             # Some elements might not be accessible
@@ -224,6 +254,113 @@ try {
             $child = $rawWalker.GetNextSibling($child)
         }
         return $count
+    }
+
+    # Function to get supported patterns for an element
+    function Get-SupportedPatterns {
+        param(
+            [System.Windows.Automation.AutomationElement]$element
+        )
+        
+        $patterns = @()
+        
+        try {
+            # List of common patterns to check
+            $patternTypes = @(
+                @{ Name = 'InvokePattern'; Pattern = [System.Windows.Automation.InvokePattern]::Pattern },
+                @{ Name = 'ValuePattern'; Pattern = [System.Windows.Automation.ValuePattern]::Pattern },
+                @{ Name = 'RangeValuePattern'; Pattern = [System.Windows.Automation.RangeValuePattern]::Pattern },
+                @{ Name = 'SelectionPattern'; Pattern = [System.Windows.Automation.SelectionPattern]::Pattern },
+                @{ Name = 'TablePattern'; Pattern = [System.Windows.Automation.TablePattern]::Pattern },
+                @{ Name = 'TableItemPattern'; Pattern = [System.Windows.Automation.TableItemPattern]::Pattern },
+                @{ Name = 'GridPattern'; Pattern = [System.Windows.Automation.GridPattern]::Pattern },
+                @{ Name = 'GridItemPattern'; Pattern = [System.Windows.Automation.GridItemPattern]::Pattern },
+                @{ Name = 'TogglePattern'; Pattern = [System.Windows.Automation.TogglePattern]::Pattern },
+                @{ Name = 'ExpandCollapsePattern'; Pattern = [System.Windows.Automation.ExpandCollapsePattern]::Pattern },
+                @{ Name = 'ScrollPattern'; Pattern = [System.Windows.Automation.ScrollPattern]::Pattern },
+                @{ Name = 'TextPattern'; Pattern = [System.Windows.Automation.TextPattern]::Pattern }
+            )
+            
+            foreach ($patternInfo in $patternTypes) {
+                try {
+                    $pattern = $element.GetCurrentPattern($patternInfo.Pattern)
+                    if ($pattern) {
+                        $patterns += $patternInfo.Name
+                    }
+                }
+                catch {
+                    # Pattern not supported
+                }
+            }
+        }
+        catch {
+            # Error checking patterns
+        }
+        
+        return $patterns
+    }
+
+    # Function to get TableItemPattern details
+    function Get-TableItemPatternDetails {
+        param(
+            [System.Windows.Automation.AutomationElement]$element
+        )
+        
+        $details = @()
+        
+        try {
+            $tableItemPattern = $element.GetCurrentPattern([System.Windows.Automation.TableItemPattern]::Pattern)
+            if ($tableItemPattern) {
+                $current = $tableItemPattern.Current
+                
+                # Row index
+                $details += "  Row: $($current.Row)"
+                
+                # Column index
+                $details += "  Column: $($current.Column)"
+                
+                # Row span
+                $details += "  RowSpan: $($current.RowSpan)"
+                
+                # Column span
+                $details += "  ColumnSpan: $($current.ColumnSpan)"
+                
+                # Column headers
+                if ($current.ColumnHeaderItems -and $current.ColumnHeaderItems.Count -gt 0) {
+                    $headerNames = @()
+                    foreach ($header in $current.ColumnHeaderItems) {
+                        try {
+                            $headerInfo = $header.Current
+                            $headerNames += $headerInfo.Name
+                        }
+                        catch {
+                            $headerNames += "[Unnamed]"
+                        }
+                    }
+                    $details += "  ColumnHeaders: $($headerNames -join ', ')"
+                }
+                
+                # Row headers
+                if ($current.RowHeaderItems -and $current.RowHeaderItems.Count -gt 0) {
+                    $headerNames = @()
+                    foreach ($header in $current.RowHeaderItems) {
+                        try {
+                            $headerInfo = $header.Current
+                            $headerNames += $headerInfo.Name
+                        }
+                        catch {
+                            $headerNames += "[Unnamed]"
+                        }
+                    }
+                    $details += "  RowHeaders: $($headerNames -join ', ')"
+                }
+            }
+        }
+        catch {
+            # Error getting table item pattern details
+        }
+        
+        return $details
     }
 
     # Start the traversal from the root element
