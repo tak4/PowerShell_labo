@@ -15,6 +15,10 @@ A part of the window title of the application to inspect. The script will use th
 .PARAMETER ProcessId
 The ID of the process to inspect.
 
+.PARAMETER ShowSkipped
+If specified, shows detailed information about skipped UI elements (elements with IsControlElement=false or IsContentElement=false).
+Skipped elements are shown in gray.
+
 .EXAMPLE
 # Dump UI elements of a Notepad window by process name
 .\Dump-UIElements.ps1 -ProcessName notepad
@@ -22,6 +26,10 @@ The ID of the process to inspect.
 .EXAMPLE
 # Dump UI elements by a partial window title
 .\Dump-UIElements.ps1 -WindowTitle "Untitled - Notepad"
+
+.EXAMPLE
+# Dump UI elements and show skipped elements with debug info
+.\Dump-UIElements.ps1 -ProcessName notepad -ShowSkipped
 
 .EXAMPLE
 # .\Dump-UIElements.ps1 -ProcessName notepad
@@ -35,7 +43,10 @@ param(
     [string]$WindowTitle,
 
     [Parameter(ParameterSetName='ProcessId', Mandatory=$true)]
-    [int]$ProcessId
+    [int]$ProcessId,
+
+    [Parameter()]
+    [switch]$ShowSkipped
 )
 
 # This script requires the UIAutomationClient assembly.
@@ -64,6 +75,9 @@ try {
 
     Write-Host "Process found: $($process.ProcessName) (ID: $($process.Id))" -ForegroundColor Green
     Write-Host "Window Title: $($process.MainWindowTitle)"
+    if ($ShowSkipped) {
+        Write-Host "Debug Mode: Showing skipped elements (in gray)" -ForegroundColor Yellow
+    }
     Write-Host "---"
 
     # Get the root element from the main window handle
@@ -93,7 +107,22 @@ try {
             $name = $info.Name
             $class = $info.ClassName
             $rect = $info.BoundingRectangle
-            Write-Host ("{0}- ControlType: '{1}', AutomationId: '{2}', Name: '{3}', ClassName: '{4}', BoundingRectangle: '{5}'" -f $indent, $controlType, $id, $name, $class, $rect)
+            $isControl = $info.IsControlElement
+            $isContent = $info.IsContentElement
+            
+            # Determine skip reason
+            $skipReasons = @()
+            if (-not $isControl) { $skipReasons += "NotControlElement" }
+            if (-not $isContent) { $skipReasons += "NotContentElement" }
+            
+            $skipInfo = if ($skipReasons.Count -gt 0) { " [SKIPPED: $($skipReasons -join ', ')]" } else { "" }
+            
+            Write-Host ("{0}- ControlType: '{1}', AutomationId: '{2}', Name: '{3}', ClassName: '{4}', BoundingRectangle: '{5}'{6}" -f $indent, $controlType, $id, $name, $class, $rect, $skipInfo) -ForegroundColor $(if ($skipReasons.Count -gt 0) { "DarkGray" } else { "White" })
+            
+            # Show detailed information about skipped elements when -ShowSkipped is specified
+            if ($ShowSkipped -and $skipReasons.Count -gt 0) {
+                Write-Host ("{0}  └─ IsControlElement: {1}, IsContentElement: {2}" -f $indent, $isControl, $isContent) -ForegroundColor DarkGray
+            }
         }
         catch {
             # Some elements might not be accessible
