@@ -19,6 +19,14 @@ The ID of the process to inspect.
 If specified, shows detailed information about skipped UI elements (elements with IsControlElement=false or IsContentElement=false).
 Skipped elements are shown in gray.
 
+.PARAMETER ShowStatistics
+If specified, shows statistics about the UI element tree at the end, including:
+- Total elements processed in Control View
+- Offscreen elements
+- Hidden elements (IsVisible=false)
+- Elements skipped by Control View filter vs Raw View total
+- Error elements
+
 .EXAMPLE
 # Dump UI elements of a Notepad window by process name
 .\Dump-UIElements.ps1 -ProcessName notepad
@@ -32,7 +40,12 @@ Skipped elements are shown in gray.
 .\Dump-UIElements.ps1 -ProcessName notepad -ShowSkipped
 
 .EXAMPLE
-# .\Dump-UIElements.ps1 -ProcessName notepad
+# Dump UI elements and show statistics
+.\Dump-UIElements.ps1 -ProcessName notepad -ShowStatistics
+
+.EXAMPLE
+# Dump UI elements with both debug info and statistics
+.\Dump-UIElements.ps1 -ProcessName notepad -ShowSkipped -ShowStatistics
 #>
 [CmdletBinding()]
 param(
@@ -46,11 +59,23 @@ param(
     [int]$ProcessId,
 
     [Parameter()]
-    [switch]$ShowSkipped
+    [switch]$ShowSkipped,
+
+    [Parameter()]
+    [switch]$ShowStatistics
 )
 
 # This script requires the UIAutomationClient assembly.
 Add-Type -AssemblyName UIAutomationClient
+
+# Statistics counters
+$script:stats = @{
+    ProcessedElements = 0
+    SkippedByControlView = 0
+    OffscreenElements = 0
+    HiddenElements = 0
+    ErrorElements = 0
+}
 
 $process = $null
 try {
@@ -95,7 +120,8 @@ try {
     function Walk-UIElementTree {
         param(
             [System.Windows.Automation.AutomationElement]$element,
-            [int]$level
+            [int]$level,
+            [string]$walkerType = "ControlView"
         )
 
         # Print the element's details
@@ -109,11 +135,28 @@ try {
             $rect = $info.BoundingRectangle
             $isControl = $info.IsControlElement
             $isContent = $info.IsContentElement
+            $isVisible = $info.IsVisible
+            
+            # Update statistics
+            $script:stats.ProcessedElements++
             
             # Determine skip reason
             $skipReasons = @()
             if (-not $isControl) { $skipReasons += "NotControlElement" }
             if (-not $isContent) { $skipReasons += "NotContentElement" }
+            
+            # Check for offscreen elements
+            $isOffscreen = $rect.Width -eq 0 -and $rect.Height -eq 0
+            if ($isOffscreen) { 
+                $skipReasons += "Offscreen"
+                $script:stats.OffscreenElements++
+            }
+            
+            # Check for hidden elements
+            if (-not $isVisible) {
+                $skipReasons += "Hidden"
+                $script:stats.HiddenElements++
+            }
             
             $skipInfo = if ($skipReasons.Count -gt 0) { " [SKIPPED: $($skipReasons -join ', ')]" } else { "" }
             
@@ -121,25 +164,67 @@ try {
             
             # Show detailed information about skipped elements when -ShowSkipped is specified
             if ($ShowSkipped -and $skipReasons.Count -gt 0) {
-                Write-Host ("{0}  └─ IsControlElement: {1}, IsContentElement: {2}" -f $indent, $isControl, $isContent) -ForegroundColor DarkGray
+                Write-Host ("{0}  └─ IsControlElement: {1}, IsContentElement: {2}, IsVisible: {3}, Offscreen: {4}" -f $indent, $isControl, $isContent, $isVisible, $isOffscreen) -ForegroundColor DarkGray
             }
         }
         catch {
             # Some elements might not be accessible
+            $script:stats.ErrorElements++
             Write-Host ("{0}[Unknown] - (Error accessing properties)" -f $indent)
         }
 
         # Recurse through children
         $child = $treeWalker.GetFirstChild($element)
         while ($child) {
-            Walk-UIElementTree -element $child -level ($level + 1)
+            Walk-UIElementTree -element $child -level ($level + 1) -walkerType $walkerType
             $child = $treeWalker.GetNextSibling($child)
         }
+    }
+
+    # Function to count all elements in Raw View (including those skipped by Control View)
+    function Count-AllElements {
+        param(
+            [System.Windows.Automation.AutomationElement]$element
+        )
+        
+        $count = 1
+        $rawWalker = [System.Windows.Automation.TreeWalker]::RawViewWalker
+        $child = $rawWalker.GetFirstChild($element)
+        while ($child) {
+            $count += Count-AllElements -element $child
+            $child = $rawWalker.GetNextSibling($child)
+        }
+        return $count
     }
 
     # Start the traversal from the root element
     Write-Host "Dumping UI Elements for window: '$($process.MainWindowTitle)'"
     Walk-UIElementTree -element $rootElement -level 0
+
+    # Show statistics if requested
+    if ($ShowStatistics) {
+        Write-Host ""
+        Write-Host "========== STATISTICS ==========" -ForegroundColor Cyan
+        Write-Host "Processed Elements (Control View): $($script:stats.ProcessedElements)" -ForegroundColor Green
+        Write-Host "Offscreen Elements: $($script:stats.OffscreenElements)" -ForegroundColor Yellow
+        Write-Host "Hidden Elements (IsVisible=false): $($script:stats.HiddenElements)" -ForegroundColor Yellow
+        Write-Host "Error Elements: $($script:stats.ErrorElements)" -ForegroundColor Red
+        
+        # Count total elements in Raw View
+        try {
+            $rawWalker = [System.Windows.Automation.TreeWalker]::RawViewWalker
+            $totalRawElements = Count-AllElements -element $rootElement
+            $skippedByControlView = $totalRawElements - $script:stats.ProcessedElements
+            
+            Write-Host ""
+            Write-Host "Total Elements (Raw View): $totalRawElements" -ForegroundColor Cyan
+            Write-Host "Skipped by Control View Filter: $skippedByControlView" -ForegroundColor Red
+        }
+        catch {
+            Write-Host "Could not count Raw View elements" -ForegroundColor Red
+        }
+        Write-Host "===============================" -ForegroundColor Cyan
+    }
 
 }
 catch {
