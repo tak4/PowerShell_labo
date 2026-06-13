@@ -27,6 +27,10 @@ If specified, shows statistics about the UI element tree at the end, including:
 - Elements skipped by Control View filter vs Raw View total
 - Error elements
 
+.PARAMETER IncludeHidden
+If specified, includes hidden elements (IsVisible=false) in the traversal using RawViewWalker.
+By default, only visible elements are shown (Control View).
+
 .EXAMPLE
 # Dump UI elements of a Notepad window by process name
 .\Dump-UIElements.ps1 -ProcessName notepad
@@ -44,8 +48,12 @@ If specified, shows statistics about the UI element tree at the end, including:
 .\Dump-UIElements.ps1 -ProcessName notepad -ShowStatistics
 
 .EXAMPLE
-# Dump UI elements with both debug info and statistics
-.\Dump-UIElements.ps1 -ProcessName notepad -ShowSkipped -ShowStatistics
+# Dump UI elements including hidden elements
+.\Dump-UIElements.ps1 -ProcessName notepad -IncludeHidden
+
+.EXAMPLE
+# Dump UI elements with all options
+.\Dump-UIElements.ps1 -ProcessName notepad -ShowSkipped -ShowStatistics -IncludeHidden
 #>
 [CmdletBinding()]
 param(
@@ -62,7 +70,10 @@ param(
     [switch]$ShowSkipped,
 
     [Parameter()]
-    [switch]$ShowStatistics
+    [switch]$ShowStatistics,
+
+    [Parameter()]
+    [switch]$IncludeHidden
 )
 
 # This script requires the UIAutomationClient assembly.
@@ -100,6 +111,9 @@ try {
 
     Write-Host "Process found: $($process.ProcessName) (ID: $($process.Id))" -ForegroundColor Green
     Write-Host "Window Title: $($process.MainWindowTitle)"
+    if ($IncludeHidden) {
+        Write-Host "Mode: Including Hidden Elements (Raw View)" -ForegroundColor Cyan
+    }
     if ($ShowSkipped) {
         Write-Host "Debug Mode: Showing skipped elements (in gray)" -ForegroundColor Yellow
     }
@@ -113,8 +127,13 @@ try {
     }
 
     # Use the RawViewWalker to traverse the UI tree (shows all elements including layout containers)
-    $treeWalker = [System.Windows.Automation.TreeWalker]::ControlViewWalker
-    # $treeWalker = [System.Windows.Automation.TreeWalker]::RawViewWalker
+    if ($IncludeHidden) {
+        $treeWalker = [System.Windows.Automation.TreeWalker]::RawViewWalker
+        Write-Host "(Using RawViewWalker - includes hidden elements)" -ForegroundColor DarkCyan
+    } else {
+        $treeWalker = [System.Windows.Automation.TreeWalker]::ControlViewWalker
+        Write-Host "(Using ControlViewWalker - visible elements only)" -ForegroundColor DarkCyan
+    }
 
     # Recursive function to walk the UI element tree
     function Walk-UIElementTree {
@@ -160,7 +179,17 @@ try {
             
             $skipInfo = if ($skipReasons.Count -gt 0) { " [SKIPPED: $($skipReasons -join ', ')]" } else { "" }
             
-            Write-Host ("{0}- ControlType: '{1}', AutomationId: '{2}', Name: '{3}', ClassName: '{4}', BoundingRectangle: '{5}'{6}" -f $indent, $controlType, $id, $name, $class, $rect, $skipInfo) -ForegroundColor $(if ($skipReasons.Count -gt 0) { "DarkGray" } else { "White" })
+            # Determine color based on skip reasons
+            $displayColor = "White"
+            if ($skipReasons.Count -gt 0) {
+                if ($skipReasons -contains "Hidden") {
+                    $displayColor = "Magenta"  # Magenta for hidden elements
+                } else {
+                    $displayColor = "DarkGray"
+                }
+            }
+            
+            Write-Host ("{0}- ControlType: '{1}', AutomationId: '{2}', Name: '{3}', ClassName: '{4}', BoundingRectangle: '{5}'{6}" -f $indent, $controlType, $id, $name, $class, $rect, $skipInfo) -ForegroundColor $displayColor
             
             # Show detailed information about skipped elements when -ShowSkipped is specified
             if ($ShowSkipped -and $skipReasons.Count -gt 0) {
@@ -205,23 +234,31 @@ try {
     if ($ShowStatistics) {
         Write-Host ""
         Write-Host "========== STATISTICS ==========" -ForegroundColor Cyan
-        Write-Host "Processed Elements (Control View): $($script:stats.ProcessedElements)" -ForegroundColor Green
+        
+        if ($IncludeHidden) {
+            Write-Host "Processed Elements (Raw View - includes hidden): $($script:stats.ProcessedElements)" -ForegroundColor Green
+        } else {
+            Write-Host "Processed Elements (Control View): $($script:stats.ProcessedElements)" -ForegroundColor Green
+        }
+        
         Write-Host "Offscreen Elements: $($script:stats.OffscreenElements)" -ForegroundColor Yellow
-        Write-Host "Hidden Elements (IsVisible=false): $($script:stats.HiddenElements)" -ForegroundColor Yellow
+        Write-Host "Hidden Elements (IsVisible=false): $($script:stats.HiddenElements)" -ForegroundColor Magenta
         Write-Host "Error Elements: $($script:stats.ErrorElements)" -ForegroundColor Red
         
-        # Count total elements in Raw View
-        try {
-            $rawWalker = [System.Windows.Automation.TreeWalker]::RawViewWalker
-            $totalRawElements = Count-AllElements -element $rootElement
-            $skippedByControlView = $totalRawElements - $script:stats.ProcessedElements
-            
-            Write-Host ""
-            Write-Host "Total Elements (Raw View): $totalRawElements" -ForegroundColor Cyan
-            Write-Host "Skipped by Control View Filter: $skippedByControlView" -ForegroundColor Red
-        }
-        catch {
-            Write-Host "Could not count Raw View elements" -ForegroundColor Red
+        # Count total elements in Raw View if not already using RawViewWalker
+        if (-not $IncludeHidden) {
+            try {
+                $rawWalker = [System.Windows.Automation.TreeWalker]::RawViewWalker
+                $totalRawElements = Count-AllElements -element $rootElement
+                $skippedByControlView = $totalRawElements - $script:stats.ProcessedElements
+                
+                Write-Host ""
+                Write-Host "Total Elements (Raw View): $totalRawElements" -ForegroundColor Cyan
+                Write-Host "Skipped by Control View Filter: $skippedByControlView" -ForegroundColor Red
+            }
+            catch {
+                Write-Host "Could not count Raw View elements" -ForegroundColor Red
+            }
         }
         Write-Host "===============================" -ForegroundColor Cyan
     }
