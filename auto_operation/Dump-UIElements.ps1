@@ -149,8 +149,8 @@ try {
         Write-Host "(Using ControlViewWalker - visible elements only)" -ForegroundColor DarkCyan
     }
 
-    # Recursive function to walk the UI element tree
-    function Walk-UIElementTree {
+    # Recursive function to expand the UI element tree
+    function Expand-UIElementTree {
         param(
             [System.Windows.Automation.AutomationElement]$element,
             [int]$level,
@@ -235,13 +235,13 @@ try {
         # Recurse through children
         $child = $treeWalker.GetFirstChild($element)
         while ($child) {
-            Walk-UIElementTree -element $child -level ($level + 1) -walkerType $walkerType
+            Expand-UIElementTree -element $child -level ($level + 1) -walkerType $walkerType
             $child = $treeWalker.GetNextSibling($child)
         }
     }
 
-    # Function to count all elements in Raw View (including those skipped by Control View)
-    function Count-AllElements {
+    # Function to measure all UI elements in Raw View (including those skipped by Control View)
+    function Measure-UIElements {
         param(
             [System.Windows.Automation.AutomationElement]$element
         )
@@ -250,7 +250,7 @@ try {
         $rawWalker = [System.Windows.Automation.TreeWalker]::RawViewWalker
         $child = $rawWalker.GetFirstChild($element)
         while ($child) {
-            $count += Count-AllElements -element $child
+            $count += Measure-UIElements -element $child
             $child = $rawWalker.GetNextSibling($child)
         }
         return $count
@@ -365,7 +365,7 @@ try {
 
     # Start the traversal from the root element
     Write-Host "Dumping UI Elements for window: '$($process.MainWindowTitle)'"
-    Walk-UIElementTree -element $rootElement -level 0
+    Expand-UIElementTree -element $rootElement -level 0
 
     # Show statistics if requested
     if ($ShowStatistics) {
@@ -386,9 +386,7 @@ try {
         if (-not $IncludeHidden) {
             try {
                 $rawWalker = [System.Windows.Automation.TreeWalker]::RawViewWalker
-                $totalRawElements = Count-AllElements -element $rootElement
-                $skippedByControlView = $totalRawElements - $script:stats.ProcessedElements
-                
+                $totalRawElements = Measure-UIElements -element $rootElement
                 Write-Host ""
                 Write-Host "Total Elements (Raw View): $totalRawElements" -ForegroundColor Cyan
                 Write-Host "Skipped by Control View Filter: $skippedByControlView" -ForegroundColor Red
