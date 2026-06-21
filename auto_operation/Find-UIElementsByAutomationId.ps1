@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 Finds multiple UI elements in a window, each specified by its AutomationId.
 

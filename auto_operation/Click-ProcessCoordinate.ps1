@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 指定されたプロセスのメインウィンドウに対して、ウィンドウ内の座標をクリックします。
 .PARAMETER ProcessName

@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 Dumps the UI element tree of a specified application window.
 

@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 Finds the first UI element in a window that matches the specified criteria.
 

@@ -1,4 +1,4 @@
-# Windows Calculator Automation (1 + 2 =)
+﻿# Windows Calculator Automation (1 + 2 =)
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
 

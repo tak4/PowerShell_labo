@@ -172,12 +172,12 @@ try {
     Set-Content -Path $outputFilePath -Value $text -Encoding UTF8
 
     # 成功メッセージを表示
-    Write-Host "`n✅ 処理が正常に完了しました。"
+    Write-Host "`n? 処理が正常に完了しました。"
     Write-Host "取得したテキストを '$outputFilePath' に保存しました。"
 
 }
 catch {
     # tryブロック内でエラーが発生した場合の処理
     # $_.Exception.Message でエラーメッセージ本文を取得して表示
-    Write-Error "❌ エラーが発生しました: $($_.Exception.Message)"
+    Write-Error "? エラーが発生しました: $($_.Exception.Message)"
 }

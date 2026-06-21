@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 指定されたプロセスのメインウィンドウにショートカットキーを送信します。
 .PARAMETER ProcessName

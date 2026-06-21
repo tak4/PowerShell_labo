@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 指定されたプロセスのUI要素ツリーを表示します。
 .PARAMETER ProcessName
