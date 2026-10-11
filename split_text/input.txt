@@ -1,0 +1,6 @@
+AAAA
+BBBB
+CCCC
+---SPLIT---
+DDDD
+EEEE
